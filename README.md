@@ -1,7 +1,10 @@
 # flaskappforpi
 1.sudo apt-get install python3
+
 2.sudo apt-get install python3-pip -y
+
 3.pip3 install -r requirements.txt
+
 4.python3 api.py
 
 curl --location --request POST 'http://IP_AddressofPi:6006/network' \
