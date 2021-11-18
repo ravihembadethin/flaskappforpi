@@ -46,6 +46,8 @@ def network():
 	line3='static routers='+ gateway +'\n'#HERE IS ROUTER ADDRESS IF YOUR ROUTER IS WORKING ON OTHER THAN GATEWAY IP
 	line4='static domain_name_servers=8.8.8.8 fd51:42f8:caae:d92e::1'
 
+	interface_down_cmd='sudo ip link set '+interface+' down'
+	interface_up_cmd='sudo ip link set '+interface+' up'
 	file_name_path="/etc/dhcpcd.conf"
 	with open(file_name_path,'r') as dhc_conf_file:
 		lines = dhc_conf_file.readlines()
@@ -71,15 +73,8 @@ def network():
 			dhc_conf_file.write(line2)
 			dhc_conf_file.write(line3)
 			dhc_conf_file.write(line4)
-	'''
-	NET_DIR='/sys/class/net'
-	subprocess.call(['sudo','systemctl','daemon-reload'])
-	subprocess.call(['sudo','systemctl','stop','dhcpcd.service'])
-	for net_dev in os.listdir(NET_DIR):
-		subprocess.call(['sudo','ip','addr','flush','dev',net_dev])
-	subprocess.call(['sudo','systemctl','start','dhcpcd.service'])
-	subprocess.call(['sudo','systemctl','restart','networking.service'])
-	'''
+	os.popen(interface_down_cmd)
+	os.popen(interface_up_cmd)
 	return jsonify({'network': True}),200
 
 if __name__=='__main__':
