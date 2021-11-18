@@ -4,6 +4,7 @@ import subprocess
 import os
 from flask import Flask,flash, jsonify, redirect, request
 from time import sleep
+import re
 
 app= Flask(__name__)
 
@@ -25,21 +26,46 @@ def devices():
 
 @app.route('/reboot',methods=["GET","POST"])
 def reboot():
-	print('We Are done Here! Rebooting System')
+	print('Rebooting System')
 	sleep(1)
 	subprocess.call('reboot')
 
 @app.route('/network',methods=["GET","POST"])
 def network():
+	response={}
+	response["valid_gw"]=""
+	response["valid_ip"]=""
+	response["valid_subnet"]=""
+	response["valid_inteface"]=""
+	response["valid_dhcp"]=""
+
 	posted_data = request.get_json(force=True)
 	print("GotData:",posted_data)
-
 	ip_address = posted_data['ip_address']
 	subnet= posted_data['subnet']
 	gateway= posted_data['gateway']
-	DCHP= posted_data['DCHP']
+	dhcp= posted_data['dhcp']
 	interface= posted_data['interface']
-	cidr=str(IPAddress(subnet).netmask_bits())
+	cidr=''
+
+	ip_regex = "^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$"
+	gateway_regex = "^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$"
+
+	subnet_regex="^(((255.){3}(255|254|252|248|240|224|192|128|0+))|((255.){2}(255|254|252|248|240|224|192|128|0+).0)|((255.)(255|254|252|248|240|224|192|128|0+)(.0+){2})|((255|254|252|248|240|224|192|128|0+)(.0+){3}))$"
+	# valid_inteface=interface in ['eth0','eth1']
+
+	response["valid_inteface"]="" if interface in ['eth0','eth1'] else "Invalid interface value"
+	response["valid_dhcp"]="" if dhcp in ['True','False','true','false',True,False] else "Need boolean value in subnet"
+
+	if not (re.search(ip_regex, ip_address)):
+		response["valid_ip"] = "Invalid Ip address value"
+		cidr=str(IPAddress(subnet).netmask_bits())
+
+	if not (re.search(gateway_regex, gateway)):
+		response["valid_gw"] =" Invalid Ip address value"
+
+	if not (re.search(subnet_regex, subnet)):
+		response["valid_subnet"] = "Invalid subnet address value"
 
 	line1='interface '+interface +'\n'
 	line2='static ip_address='+ip_address+'/'+cidr+'\n' #SUBNET CIDR IS PENDING HERE
@@ -75,7 +101,11 @@ def network():
 			dhc_conf_file.write(line4)
 	os.popen(interface_down_cmd)
 	os.popen(interface_up_cmd)
-	return jsonify({'network': True}),200
+	if response['valid_inteface'] or response['valid_gw'] or response['valid_ip'] or response['valid_dhcp'] or response['valid_subnet']:
+		response["network"]= "false"
+		return jsonify(response),400
+	else:
+		return jsonify({"network": "true"}),200
 
 if __name__=='__main__':
    app.run(debug=True, host='0.0.0.0', port=6006)
