@@ -21,7 +21,7 @@ def online():
 
 @app.route('/devices',methods=["POST"])
 def devices():
-	print(req.body);
+	# print(req.body);
 	return jsonify({'devices': True}),200
 
 @app.route('/reboot',methods=["GET","POST"])
@@ -118,7 +118,7 @@ def network():
 				dhc_conf_file.write(line4)
 		os.popen(interface_down_cmd)
 		os.popen(interface_up_cmd)
-			return jsonify(response),400
+		return jsonify(response),400
 	elif request.method == 'GET':
 		response={}
 		network={}
