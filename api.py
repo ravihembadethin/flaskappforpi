@@ -8,6 +8,11 @@ import re
 
 app= Flask(__name__)
 
+@app.route("/version", methods=["GET"])
+def version():
+	return jsonify({'version': '1.0.0'}),200
+
+
 @app.route("/", methods=["GET"])
 def index():
 	# return.redirect("/index.html");
@@ -79,7 +84,7 @@ def network():
 		if response['valid_inteface'] or response['valid_gw'] or response['valid_ip'] or response['valid_dhcp'] or response['valid_subnet']:
 			response["network"]= "false"
 			return jsonify(response),400
-			
+
 		cidr=str(IPAddress(subnet).netmask_bits())
 		line1='interface '+interface +'#'+interface+'\n'
 		line2='static ip_address='+ip_address+'/'+cidr+'#'+interface +'\n' #SUBNET CIDR IS PENDING HERE
@@ -118,7 +123,7 @@ def network():
 				dhc_conf_file.write(line4)
 		os.popen(interface_down_cmd)
 		os.popen(interface_up_cmd)
-		return jsonify(response),400
+		return jsonify(response),200
 	elif request.method == 'GET':
 		response={}
 		network={}
