@@ -50,6 +50,15 @@ def network():
 		interface= posted_data['interface']
 		cidr=''
 
+		response["valid_dhcp"]="" if dhcp in [True,False] else "Need boolean value in dhcp"
+		if dhcp != True:
+			status=os.system('sudo systemctl stop dhcpcd.service')
+			response["dhcp_service"]="DHCP service stopped"
+
+		else:
+			status=os.system('sudo systemctl start dhcpcd.service')
+			response["dhcp_service"]="DHCP service started"
+
 		ip_regex="^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$"
 		gateway_regex="^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$"
 
@@ -57,7 +66,6 @@ def network():
 		# valid_inteface=interface in ['eth0','eth1']
 
 		response["valid_inteface"]="" if interface in ['eth0','eth1'] else "Invalid interface value"
-		response["valid_dhcp"]="" if dhcp in [true,false] else "Need boolean value in subnet"
 
 		if not (re.search(ip_regex, ip_address)):
 			response["valid_ip"]="Invalid Ip address value"
@@ -68,11 +76,15 @@ def network():
 		if not (re.search(subnet_regex, subnet)):
 			response["valid_subnet"]="Invalid subnet address value"
 
+		if response['valid_inteface'] or response['valid_gw'] or response['valid_ip'] or response['valid_dhcp'] or response['valid_subnet']:
+			response["network"]= "false"
+			return jsonify(response),400
+			
 		cidr=str(IPAddress(subnet).netmask_bits())
-		line1='interface '+interface +'\n'
-		line2='static ip_address='+ip_address+'/'+cidr+'\n' #SUBNET CIDR IS PENDING HERE
-		line3='static routers='+ gateway +'\n'#HERE IS ROUTER ADDRESS IF YOUR ROUTER IS WORKING ON OTHER THAN GATEWAY IP
-		line4='static domain_name_servers=8.8.8.8 fd51:42f8:caae:d92e::1'
+		line1='interface '+interface +'#'+interface+'\n'
+		line2='static ip_address='+ip_address+'/'+cidr+'#'+interface +'\n' #SUBNET CIDR IS PENDING HERE
+		line3='static routers='+ gateway +'#'+interface+'\n'
+		line4='static domain_name_servers=8.8.8.8 fd51:42f8:caae:d92e::1' +'#'+interface +'\n'
 
 		interface_down_cmd='sudo ip link set '+interface+' down'
 		interface_up_cmd='sudo ip link set '+interface+' up'
@@ -81,14 +93,18 @@ def network():
 
 		with open(file_name_path,'w') as dhc_conf_file:
 			for line in lines:
-				if line.find("interface") != -1:
-					pass
-				elif line.find("ip_address") != -1:
-					pass
-				elif line.find("static routers") != -1:
-					pass
-				elif line.find("static domain_name_servers") != -1:
-					pass
+				tmp='#'+interface
+				if line.find(tmp) != -1:
+					if line.find(line1) != -1:
+						pass
+					elif line.find("ip_address") != -1:
+						pass
+					elif line.find("static routers") != -1:
+						pass
+					elif line.find("static domain_name_servers") != -1:
+						pass
+					else:
+						dhc_conf_file.write(line)
 				else:
 					dhc_conf_file.write(line)
 		with open(file_name_path, "a+") as dhc_conf_file:
@@ -100,42 +116,57 @@ def network():
 				dhc_conf_file.write(line2)
 				dhc_conf_file.write(line3)
 				dhc_conf_file.write(line4)
-		os.popen(interface_down_cmd)
-		os.popen(interface_up_cmd)
-		if response['valid_inteface'] or response['valid_gw'] or response['valid_ip'] or response['valid_dhcp'] or response['valid_subnet']:
-			response["network"]= "false"
+		# os.popen(interface_down_cmd)
+		# os.popen(interface_up_cmd)
 			return jsonify(response),400
-		else:
-			return jsonify({"network": "true"}),200
-	if request.method == 'GET':
+	elif request.method == 'GET':
+		response={}
+		network={}
+		eth0={}
+		eth1={}
+		eth0["dhcp"]=False
+		eth1["dhcp"]=False
+		x='#eth0'
+		y='#eth1'
+		status=os.system('sudo systemctl is-active --quiet dhcpcd.service')
+		if(status == 0):
+			eth1["dhcp"]=True
+			eth0["dhcp"]=True
 		with open (file_name_path,"r") as f:
 			for line in f:
-				if "interface eth" in line:
-					if "#" not in line:
+				if '#'!= line[0]:
+					# print(line)
+					if x in line:
 						# print(line)
-						interface=line.split(" ")
-						interface=interface[1].strip()
-						response['interface']=interface
+						if "static ip_address" in line:
+							cidr_ar=line.split("/")
+							cidr=cidr_ar[1].split("#")
+							ip_address=cidr_ar[0].split("=")
+							subnet='.'.join([str((m>>(3-i)*8)&0xff) for i,m in enumerate([-1<<(32-int(cidr[0]))]*4)])
+							eth0['ip_address']=ip_address[1]
+							eth0['subnet']=subnet
+						elif "static routers" in line:
+							gateway=line.split("=")
+							gateway=gateway[1].split("#")
+							eth0["gateway"]=gateway[0]
 
-				elif "static ip_address" in line:
-					if "#" not in line:
-						cidr_ar=line.split("/")
-						cidr=int(cidr_ar[1])
-						print(cidr_ar,line)
-						ip_address=cidr_ar[0].split("=")
-						# print(cidr)
-						subnet='.'.join([str((m>>(3-i)*8)&0xff) for i,m in enumerate([-1<<(32-cidr)]*4)])
-						response['static ip_address']=ip_address[1]
-						response['subnet']=subnet
-				elif "static routers" in line:
-					if "#" not in line:
+					elif y in line:
 						# print(line)
-						gateway=line.split("=")
-						gateway=gateway[1].strip()
-						response["gateway"]=gateway[1]
-		response["network"]="true"
-		# ip="static ip_address"
-		return jsonify(response)
+						if "static ip_address" in line:
+							cidr_ar=line.split("/")
+							cidr=cidr_ar[1].split("#")
+							ip_address=cidr_ar[0].split("=")
+							subnet='.'.join([str((m>>(3-i)*8)&0xff) for i,m in enumerate([-1<<(32-int(cidr[0]))]*4)])
+							eth1['ip_address']=ip_address[1]
+							eth1['subnet']=subnet
+						elif "static routers" in line:
+							gateway=line.split("=")
+							gateway=gateway[1].split("#")
+							eth1["gateway"]=gateway[0]
+		network['eth1']=eth1
+		network['eth0']=eth0
+		response['network']=network
+	return jsonify(response),200
 
 if __name__=='__main__':
    app.run(debug=True, host='0.0.0.0', port=6006)
