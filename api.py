@@ -116,8 +116,8 @@ def network():
 				dhc_conf_file.write(line2)
 				dhc_conf_file.write(line3)
 				dhc_conf_file.write(line4)
-		# os.popen(interface_down_cmd)
-		# os.popen(interface_up_cmd)
+		os.popen(interface_down_cmd)
+		os.popen(interface_up_cmd)
 			return jsonify(response),400
 	elif request.method == 'GET':
 		response={}
