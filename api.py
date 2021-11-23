@@ -2,7 +2,7 @@ from netaddr import IPAddress
 import requests, json
 import subprocess
 import os
-from flask import Flask,flash, jsonify, redirect, request
+from flask import Flask,flash, jsonify, redirect, request, render_template
 from time import sleep
 import re
 
@@ -18,6 +18,10 @@ def index():
 	# return.redirect("/index.html");
 	return jsonify({'index': True}),200
 
+@app.route("/hostname", methods=["GET"])
+def staticPage():
+	message = "Raspberry Pi Index Page"
+	return render_template('index.html', message=message),200
 
 @app.route('/online',methods=["GET"])
 def online():
