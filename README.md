@@ -16,3 +16,7 @@ curl --location --request POST 'http://IP_AddressofPi:6006/network' \
 "gateway": "192.168.1.1",
 "DCHP": "True"
 } '
+
+5. sudo apt-get install -y python3-openssl
+
+6. openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365
