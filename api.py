@@ -13,13 +13,13 @@ def version():
 	return jsonify({'version': '1.0.0'}),200
 
 
-@app.route("/", methods=["GET"])
-def index():
-	# return.redirect("/index.html");
-	return jsonify({'index': True}),200
+# @app.route("/", methods=["GET"])
+# def index():
+# 	# return.redirect("/index.html");
+# 	return jsonify({'index': True}),200
 
-@app.route("/hostname", methods=["GET"])
-def staticPage():
+@app.route("/raspberrypi", methods=["GET"])
+def index():
 	message = "Raspberry Pi Index Page"
 	return render_template('index.html', message=message),200
 
@@ -60,13 +60,25 @@ def network():
 		cidr=''
 
 		response["valid_dhcp"]="" if dhcp in [True,False] else "Need boolean value in dhcp"
-		if dhcp != True:
-			status=os.system('sudo systemctl stop dhcpcd.service')
-			response["dhcp_service"]="DHCP service stopped"
+		print("Valid",response["valid_dhcp"])
+		if dhcp != True: #dynamic ip----> true ----- and ------ static ip----> false	
+			# status=os.system('sudo systemctl stop dhcpcd.service') 
+			cidr=str(IPAddress(subnet).netmask_bits())
+			line1='interface '+interface +'#'+interface+'\n'
+			line2='static ip_address='+ip_address+'/'+cidr+'#'+interface +'\n' #SUBNET CIDR IS PENDING HERE
+			line3='static routers='+ gateway +'#'+interface+'\n'
+			line4='static domain_name_servers=8.8.8.8 fd51:42f8:caae:d92e::1' +'#'+interface +'\n'
+			response["dhcp_service"]="Dynamic IP False"
 
 		else:
-			status=os.system('sudo systemctl start dhcpcd.service')
+			# status=os.system('sudo systemctl start dhcpcd.service')
 			response["dhcp_service"]="DHCP service started"
+			cidr=str(IPAddress(subnet).netmask_bits())
+			line1='#interface '+interface +'#'+interface+'\n'
+			line2='#static ip_address='+ip_address+'/'+cidr+'#'+interface +'\n' #SUBNET CIDR IS PENDING HERE
+			line3='#static routers='+ gateway +'#'+interface+'\n'
+			line4='#static domain_name_servers=8.8.8.8 fd51:42f8:caae:d92e::1' +'#'+interface +'\n'
+			response["dhcp_service"]="Dynamic IP True"
 
 		ip_regex="^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$"
 		gateway_regex="^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$"
@@ -89,11 +101,7 @@ def network():
 			response["network"]= "false"
 			return jsonify(response),400
 
-		cidr=str(IPAddress(subnet).netmask_bits())
-		line1='interface '+interface +'#'+interface+'\n'
-		line2='static ip_address='+ip_address+'/'+cidr+'#'+interface +'\n' #SUBNET CIDR IS PENDING HERE
-		line3='static routers='+ gateway +'#'+interface+'\n'
-		line4='static domain_name_servers=8.8.8.8 fd51:42f8:caae:d92e::1' +'#'+interface +'\n'
+
 
 		interface_down_cmd='sudo ip link set '+interface+' down'
 		interface_up_cmd='sudo ip link set '+interface+' up'
@@ -178,5 +186,4 @@ def network():
 	return jsonify(response),200
 
 if __name__=='__main__':
-	context = ('cert.pem', 'key.pem')
-	app.run(debug=True,host='0.0.0.0',port=6006, ssl_context=context)
+   app.run(debug=True, host='0.0.0.0', port=6006)
